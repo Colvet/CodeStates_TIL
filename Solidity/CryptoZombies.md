@@ -1,4 +1,5 @@
-# Solidity
+# 크립토 좀비 정리
+> https://cryptozombies.io 사이트에서 학습한 내용 정리
 
 ## 상태변수
 > 컨트랙트 스토리지에 영원히 저장되는 변수(블록에 저장)
@@ -127,3 +128,56 @@ uint32 a; uint c; uint32 b;
 + 해당 컨트랙트 주소에 있는 이더를 출금
 + this.balance : 컨트랙트에 저장돼있는 전체 잔액
 
+## 오버플로우, 언더플로우
+1. 8비트 데이터를 저장할 수 있는 uint8 하나를 가지고 있다 가정. 
+2. 저장할 수 있는 가장 큰 수는 이진수로 11111111(또는 십진수로 2^8 - 1 = 255)
+3. uint8 number = 255; number++; 해당 코드 실행시
+4. 오버플로우 발생 (number 가 0으로 된다 또는 00000000)
+5. 언더플로우는 이와 유사하게 0 값을 가진 uint8에서 1을 빼면, 255와 같아진다. uint는 음수가 없기 떄문에
+
+## assert
++ assert는 조건을 만족하지 않으면 에러를 발생시킨다는 점에서 require와 비슷. assert와 require의 차이점은, require는 함수 실행이 실패하면 남은 가스를 사용자에게 되돌려 주지만, assert는 그렇지 않다. assert는 일반적으로 코드가 심각하게 잘못 실행될 때 사용
+
+
+# Web3
+
+## Call
+> call은 view와 pure 함수를 위해 사용 블록체인에 트랜잭션을 생성하지 않는다.
++ public으로 변수를 선언하면 자동으로 같은 이름의 퍼블릭 "getter" 함수를 생성
+
+
+## Send
+> send는 트랜잭션을 만들고 블록체인 상의 데이터를 변경. view와 pure가 아닌 모든 함수에 대해 send를 사용.
+
+## Wei
+> 이더리움의 가장 작은 단위 1eth = 10^18 wei
++ 변환: web3js.utils.toWei("1"); 1 eth
+
+## indexed
+> 이벤트를 필터링하고 현재 사용자와 연관된 변경만을 수신하기 위해, ERC721을 구현할 때 Transfer 이벤트에서 했던 것처럼 솔리디티 컨트랙트에 indexed 키워드를 사용.
+```
+event Transfer(address indexed _from, address indexed _to, uint256 _tokenId);
+이 경우, _from과 _to가 indexed 되어 있기 때문에, 프론트엔드의 이벤트 리스너에서 필터링 가능:
+
+// `filter`를 사용해 `_to`가 `userAccount`와 같을 때만 코드를 실행
+cryptoZombies.events.Transfer({ filter: { _to: userAccount } })
+.on("data", function(event) {
+  let data = event.returnValues;
+  // 현재 사용자가 방금 좀비를 수령
+  // 해당 좀비를 보여줄 수 있도록 UI를 업데이트할 수 있도록 여기에 추가
+}).on("error", console.error);
+```
+event와 indexed 영역을 사용하는 것은 컨트랙트에서 변화를 감지하고 프론트엔드에 반영할 수 있게 하는 유용한 방법.
+
+## Event
+1. getPastEvents를 이용해 지난 이벤트들에 대해 질의를 하고, fromBlock과 toBlock 필터들을 이용해 이벤트 로그에 대한 시간 범위를 솔리디티에 전달할 수 있다.
+```
+cryptoZombies.getPastEvents("NewZombie", { fromBlock: 0, toBlock: "latest" })
+.then(function(events) {
+  // 생성된 모든 좀비의 목록을 우리가 받을 수 있게 할 것이네.
+});
+```
+2. 위 메소드를 사용해서 시작 시간부터의 이벤트 로그들에 대해 질의를 할 수 있기 때문에, 이벤트를 저렴한 형태의 storage로 사용할 수 있다.
+3. 데이터를 블록체인에 기록하는 것은 솔리디티에서 가장 비싼 비용을 지불하는 작업 -> 이벤트를 이용하는 것은 가스 측면에서 훨씬 더 저렴
+  + 3.1 여기서 단점이 되는 부분은 스마트 컨트랙트 자체 안에서는 이벤트를 읽을 수 없다. 하지만 히스토리로 블록체인에 기록하여 앱의 프론트엔드에서 읽기를 원하는 데이터가 있다면, 이는 새겨놓아야 할 중요한 사용 예시이네.
+  + 3.2 예를 들어, 우린 이것을 좀비 전투의 히스토리 기록용으로 사용 - 좀비가 다른 좀비를 공격할 때마다, 그리고 누군가 이길 때마다 우린 이벤트를 생성 -> 스마트 컨트랙트는 추후 결과를 계산할 때 이 데이터가 필요하지 않지만, 사용자들이 앱의 프론트엔드에서 찾아볼 수 있는 유용한 데이터가 된다.
